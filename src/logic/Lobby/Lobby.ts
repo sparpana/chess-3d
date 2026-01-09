@@ -6,7 +6,7 @@ for (let index = 0; index < Array.length; index++) {
 }
 // (removed orphaned brace)
 import WebApp from "@twa-dev/sdk";
-import { TonConnectUI } from "@tonconnect/ui";
+// import { TonConnectUI } from "@tonconnect/ui";
 import { LeaderboardEntry } from "logic/LoadingManager/LoadingManager";
 import { Socket } from "socket.io-client/build/esm/socket";
 import { io } from "socket.io-client";
@@ -28,7 +28,7 @@ export interface GameConfig {
 export class Lobby {
   private socket: Socket;
   private container: HTMLDivElement;
-  private tonConnectUI: TonConnectUI;
+  // private tonConnectUI: TonConnectUI;
   private onGameStart: (
     roomId: string,
     config: GameConfig,
@@ -135,19 +135,7 @@ export class Lobby {
     title.innerText = "2v2 Chess Prototype";
     this.container.appendChild(title);
 
-    // TON Connect Button
-    const tonBtnContainer = document.createElement("div");
-    tonBtnContainer.id = "ton-connect-btn";
-    tonBtnContainer.style.marginBottom = "20px";
-    this.container.appendChild(tonBtnContainer);
-
-    if (!this.tonConnectUI) {
-      this.tonConnectUI = new TonConnectUI({
-        manifestUrl:
-          "https://raw.githubusercontent.com/ton-community/tutorials/main/03-client/test/public/tonconnect-manifest.json", // Using a test manifest for now or localhost if configured
-        buttonRootId: "ton-connect-btn",
-      });
-    }
+    // TON Connect Button removed for now
 
     const teamInput = document.createElement("input");
     teamInput.placeholder = "Your Team Name";
@@ -312,8 +300,11 @@ export class Lobby {
       const startBtn = document.createElement("button");
       startBtn.innerText = "Start Game";
       startBtn.className = "btn";
-      if (this.roomId) {
-      }
+      startBtn.onclick = () => {
+        if (this.roomId) {
+          this.socket.emit("start_game", { roomId: this.roomId });
+        }
+      };
       this.container.appendChild(startBtn);
     } else {
       const waitMsg = document.createElement("p");

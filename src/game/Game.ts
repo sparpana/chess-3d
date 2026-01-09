@@ -21,6 +21,7 @@ export class Game {
   private socket: Socket | null = null;
   private myRole: string | null = null;
   private gameConfig: GameConfig | null = null;
+  private roomId: string | null = null;
 
   private options: GameOptions;
 
@@ -112,7 +113,11 @@ export class Game {
     this.activeScene.start(
       (chessInstance: ChessInstance, playerColor: PieceColor) => {
         this.onEndGame(chessInstance, playerColor);
-      }
+      },
+      this.gameConfig,
+      this.myRole,
+      this.socket,
+      this.roomId
     );
   }
 
@@ -189,6 +194,7 @@ export class Game {
       this.socket = socket;
       this.myRole = myRole;
       this.gameConfig = config;
+      this.roomId = roomId;
 
       this.activeScene.start(
         (chessInstance: ChessInstance, playerColor: PieceColor) => {
