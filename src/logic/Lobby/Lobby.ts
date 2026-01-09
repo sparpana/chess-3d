@@ -102,6 +102,19 @@ export class Lobby {
     this.socket.on("leaderboard_data", (data) => {
       this.renderLeaderboard(data);
     });
+
+    this.socket.on("users_update", (users) => {
+      // If we are in the main menu, update the waiting room list
+      const waitingList = document.getElementById("waiting-list");
+      if (waitingList) {
+        waitingList.innerHTML = "";
+        Object.values(users).forEach((u: any) => {
+          const li = document.createElement("li");
+          li.innerText = `${u.name} - ${u.status}`;
+          waitingList.appendChild(li);
+        });
+      }
+    });
   }
 
   public show() {
@@ -155,6 +168,10 @@ export class Lobby {
         name: telegramName,
         team: teamInput.value || "Team A",
       });
+
+    // Set my name on server
+    this.socket.emit("set_name", telegramName);
+
     this.container.appendChild(createBtn);
 
     const lbBtn = document.createElement("button");
@@ -192,6 +209,30 @@ export class Lobby {
     joinContainer.appendChild(input);
     joinContainer.appendChild(joinBtn);
     this.container.appendChild(joinContainer);
+
+    // Waiting Room List
+    const wrContainer = document.createElement("div");
+    wrContainer.style.marginTop = "30px";
+    wrContainer.style.width = "80%";
+    wrContainer.style.maxWidth = "400px";
+    wrContainer.style.backgroundColor = "rgba(0,0,0,0.5)";
+    wrContainer.style.padding = "10px";
+    wrContainer.style.borderRadius = "8px";
+
+    const wrTitle = document.createElement("h3");
+    wrTitle.innerText = "Players Online";
+    wrTitle.style.textAlign = "center";
+    wrContainer.appendChild(wrTitle);
+
+    const wrList = document.createElement("ul");
+    wrList.id = "waiting-list";
+    wrList.style.listStyle = "none";
+    wrList.style.padding = "0";
+    wrList.style.maxHeight = "150px";
+    wrList.style.overflowY = "auto";
+    wrContainer.appendChild(wrList);
+
+    this.container.appendChild(wrContainer);
   }
 
   private renderLeaderboard(data?: LeaderboardEntry[]) {
@@ -207,10 +248,14 @@ export class Lobby {
     list.style.maxWidth = "600px";
 
     data.forEach((entry, i) => {
+      const totalGames = entry.gamesPlayed || 0;
+      const winRate =
+        totalGames > 0 ? ((entry.wins / totalGames) * 100).toFixed(1) : "0.0";
+
       const li = document.createElement("li");
       li.innerText = `#${i + 1} ${entry.name} (${entry.team}): ${
         entry.wins
-      } wins | ${entry.losses || 0} losses | Streak: ${
+      } wins | ${entry.losses || 0} losses | ${winRate}% WR | Streak: ${
         entry.currentStreak || 0
       } (Best: ${entry.bestStreak || 0})`;
       li.style.padding = "10px";

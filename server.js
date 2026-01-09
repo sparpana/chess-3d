@@ -17,6 +17,7 @@ app.use(express.static("dist"));
 
 // Game State Storage (Memory)
 const rooms = {};
+const users = {}; // { socketId: { name, status } }
 const leaderboard = [
   { name: "Grandmaster AI", wins: 10, losses: 0, gamesPlayed: 10, team: "DeepBlue" },
   { name: "Rookie", wins: 2, losses: 8, gamesPlayed: 10, team: "Humans" }
@@ -24,6 +25,17 @@ const leaderboard = [
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
+  
+  // Initialize user as online
+  users[socket.id] = { name: "Anonymous", status: "In Lobby" };
+  io.emit("users_update", users);
+
+  socket.on("set_name", (name) => {
+    if (users[socket.id]) {
+      users[socket.id].name = name;
+      io.emit("users_update", users);
+    }
+  });
 
   socket.on("get_leaderboard", () => {
     socket.emit("leaderboard_data", leaderboard);
@@ -90,6 +102,13 @@ io.on("connection", (socket) => {
     };
     
     socket.join(roomId);
+    
+    // Update status
+    if (users[socket.id]) {
+      users[socket.id].status = "In Room " + roomId;
+      io.emit("users_update", users);
+    }
+
     socket.emit("room_created", { roomId, config: rooms[roomId].config });
     console.log(`Room ${roomId} created by ${socket.id}`);
   });
@@ -122,6 +141,12 @@ io.on("connection", (socket) => {
     // Let's keep it simple: Lobby owner configures slots. Joiner just watches or takes what's given.
     
     socket.join(roomId);
+    
+    if (users[socket.id]) {
+      users[socket.id].status = "In Room " + roomId;
+      io.emit("users_update", users);
+    }
+
     socket.emit("joined_room", { roomId, config: room.config, role: assignedRole });
     io.to(roomId).emit("player_joined", { config: room.config });
   });
@@ -136,6 +161,16 @@ io.on("connection", (socket) => {
   
   socket.on("start_game", ({ roomId }) => {
       if (rooms[roomId]) {
+        // Update all players in this room to "Playing"
+        const room = io.sockets.adapter.rooms.get(roomId);
+        if (room) {
+          for (const socketId of room) {
+            if (users[socketId]) {
+              users[socketId].status = "Playing";
+            }
+          }
+          io.emit("users_update", users);
+        }
         io.to(roomId).emit("game_started", { roomId, config: rooms[roomId].config });
       }
   });
@@ -152,6 +187,8 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
+    delete users[socket.id];
+    io.emit("users_update", users);
     // Remove player from rooms?
     // For prototype, we keep them in config but they might be offline.
   });
