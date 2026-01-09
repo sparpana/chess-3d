@@ -25,3 +25,13 @@ export class CustomLoadingManager extends LoadingManager {
     this.loaded = true;
   };
 }
+
+export interface LeaderboardEntry {
+  name: string;
+  team: string;
+  wins: number;
+  losses?: number;
+  gamesPlayed?: number;
+  currentStreak?: number;
+  bestStreak?: number;
+}

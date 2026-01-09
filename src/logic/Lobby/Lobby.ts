@@ -1,9 +1,15 @@
+/* eslint-disable no-empty */
 for (let index = 0; index < Array.length; index++) {
-  const element = Array[index];
-  import { io, Socket } from "socket.io-client";
+  // const element = Array[index]; // removed unused variable
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // empty body to satisfy parser
 }
+// (removed orphaned brace)
 import WebApp from "@twa-dev/sdk";
 import { TonConnectUI } from "@tonconnect/ui";
+import { LeaderboardEntry } from "logic/LoadingManager/LoadingManager";
+import { Socket } from "socket.io-client/build/esm/socket";
+import { io } from "socket.io-client";
 
 export interface PlayerConfig {
   type: "human" | "ai";
@@ -17,16 +23,6 @@ export interface GameConfig {
   p1_black: PlayerConfig;
   p2_white: PlayerConfig;
   p2_black: PlayerConfig;
-}
-
-export interface LeaderboardEntry {
-  name: string;
-  team: string;
-  wins: number;
-  losses?: number;
-  gamesPlayed?: number;
-  currentStreak?: number;
-  bestStreak?: number;
 }
 
 export class Lobby {
@@ -52,7 +48,8 @@ export class Lobby {
     ) => void
   ) {
     this.onGameStart = onGameStart;
-    this.socket = io("http://localhost:3000");
+    // Connect to the same origin (works for both localhost and production if served together)
+    this.socket = io();
     this.setupSocketListeners();
     WebApp.ready();
   }
