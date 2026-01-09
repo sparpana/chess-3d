@@ -1,4 +1,6 @@
 import { io, Socket } from "socket.io-client";
+import WebApp from "@twa-dev/sdk";
+import { TonConnectUI } from "@tonconnect/ui";
 
 export interface PlayerConfig {
   type: "human" | "ai";
@@ -22,6 +24,7 @@ export interface LeaderboardEntry {
 export class Lobby {
   private socket: Socket;
   private container: HTMLDivElement;
+  private tonConnectUI: TonConnectUI;
   private onGameStart: (
     roomId: string,
     config: GameConfig,
@@ -43,6 +46,7 @@ export class Lobby {
     this.onGameStart = onGameStart;
     this.socket = io("http://localhost:3000");
     this.setupSocketListeners();
+    WebApp.ready();
   }
 
   private setupSocketListeners() {
@@ -102,6 +106,10 @@ export class Lobby {
 
     document.body.appendChild(this.container);
     this.renderMainMenu();
+
+    // Initialize TON Connect
+    // We create a container for the button inside our lobby
+    // But since TonConnectUI expects an ID, we'll create a div with that ID
   }
 
   private renderMainMenu() {
@@ -110,6 +118,19 @@ export class Lobby {
     const title = document.createElement("h1");
     title.innerText = "2v2 Chess Prototype";
     this.container.appendChild(title);
+
+    // TON Connect Button
+    const tonBtnContainer = document.createElement("div");
+    tonBtnContainer.id = "ton-connect-btn";
+    tonBtnContainer.style.marginBottom = "20px";
+    this.container.appendChild(tonBtnContainer);
+
+    if (!this.tonConnectUI) {
+        this.tonConnectUI = new TonConnectUI({
+            manifestUrl: 'https://raw.githubusercontent.com/ton-community/tutorials/main/03-client/test/public/tonconnect-manifest.json', // Using a test manifest for now or localhost if configured
+            buttonRootId: 'ton-connect-btn'
+        });
+    }
 
     const teamInput = document.createElement("input");
     teamInput.placeholder = "Your Team Name";
@@ -120,9 +141,13 @@ export class Lobby {
     const createBtn = document.createElement("button");
     createBtn.innerText = "Create Game";
     createBtn.className = "btn";
+    
+    // Auto-fill name from Telegram if available
+    const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
+    
     createBtn.onclick = () =>
       this.socket.emit("create_room", {
-        name: "Player",
+        name: telegramName,
         team: teamInput.value || "Team A",
       });
     this.container.appendChild(createBtn);
@@ -147,9 +172,12 @@ export class Lobby {
     const joinBtn = document.createElement("button");
     joinBtn.innerText = "Join Game";
     joinBtn.className = "btn";
+    
+    const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
+
     joinBtn.onclick = () => {
       if (input.value) {
-        this.socket.emit("join_room", { roomId: input.value, name: "Player" });
+        this.socket.emit("join_room", { roomId: input.value, name: telegramName });
       }
     };
 

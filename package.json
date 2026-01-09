@@ -19,6 +19,7 @@
   "author": "Ernest Rudnicki",
   "license": "MIT",
   "dependencies": {
+    "@tonconnect/ui": "^2.3.1",
     "@twa-dev/sdk": "^8.0.2",
     "cannon-es": "0.19.0",
     "cannon-es-debugger": "1.0.0",
