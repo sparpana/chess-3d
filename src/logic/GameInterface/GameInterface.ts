@@ -8,6 +8,7 @@ export class GameInterface {
   private blackScoreElementId = "black-score";
   private opponentTurnNotificationElementId = "opponent-turn-notification";
   private promotionElementId = "promotion-element-id";
+  private turnInfoElementId = "turn-info";
   private promotable: PromotablePieces[] = ["q", "r", "b", "n"];
 
   private createScoreElement(id: string, isPlayerScore: boolean): void {
@@ -105,6 +106,26 @@ export class GameInterface {
     el.style.display = "none";
   }
 
+  private createTurnInfoElement(): void {
+    const div = document.createElement("DIV");
+    div.setAttribute("id", this.turnInfoElementId);
+    div.style.position = "absolute";
+    div.style.top = "10px";
+    div.style.left = "50%";
+    div.style.transform = "translateX(-50%)";
+    div.style.color = "white";
+    div.style.fontSize = "24px";
+    div.style.fontWeight = "bold";
+    div.style.zIndex = "100";
+    div.style.textShadow = "2px 2px 4px #000000";
+    document.body.appendChild(div);
+  }
+
+  updateTurnInfo(text: string): void {
+    const el = document.getElementById(this.turnInfoElementId);
+    if (el) el.innerHTML = text;
+  }
+
   init(playerColor: PieceColor): void {
     const isPlayerWhiteColor = playerColor === "w";
 
@@ -113,11 +134,13 @@ export class GameInterface {
     this.createOpponentTurnNotificationElement(
       this.opponentTurnNotificationElementId
     );
+    this.createTurnInfoElement();
   }
 
   cleanup(): void {
     document.getElementById(this.blackScoreElementId)?.remove();
     document.getElementById(this.whiteScoreElementId)?.remove();
     document.getElementById(this.opponentTurnNotificationElementId)?.remove();
+    document.getElementById(this.turnInfoElementId)?.remove();
   }
 }

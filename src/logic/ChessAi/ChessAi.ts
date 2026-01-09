@@ -220,6 +220,7 @@ export class ChessAi {
   init(color: PieceColor, fen: string): void {
     this.color = color;
     this.chessGame.load(fen);
+    this.prevSum = 0;
 
     if (this.isBlack()) {
       this.blackStartInit();

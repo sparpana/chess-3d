@@ -43,13 +43,16 @@ export interface AiPerformedMoveWebWorkerEvent {
   type: "aiMovePerformed";
 }
 
+export interface CalculateWebWorkerEvent {
+  type: "calculate";
+}
+
 export type WebWorkerEvent =
   | { data: InitWebWorkerEvent }
   | { data: AiMoveWebWorkerEvent }
   | { data: AiPerformedMoveWebWorkerEvent }
-  | {
-      data: PromotionWebWorkerEvent;
-    };
+  | { data: PromotionWebWorkerEvent }
+  | { data: CalculateWebWorkerEvent };
 
 export interface PromotionResult {
   removedPieceId: number;

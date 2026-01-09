@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Vec3, World } from "cannon-es";
 import { ChessBoard } from "objects/ChessBoard/ChessBoard";
 import { Piece } from "objects/Pieces/Piece/Piece";
@@ -38,6 +39,8 @@ export class ChessGameEngine {
   private loader: GLTFLoader;
   private world: World;
 
+  private turnCount = 0;
+
   private selectedInitialPosition: Vec3;
   private selected: Piece | null;
 
@@ -59,11 +62,33 @@ export class ChessGameEngine {
     this.gameInterface = new GameInterface();
 
     this.worker = new Worker(new URL("./worker.ts", import.meta.url));
+    this.worker.onmessage = (e) => {
+      console.log("Main: Message from worker", e.data);
+    };
   }
 
   private drawSide() {
-    const coinFlip = Math.round(Math.random());
-    this.startingPlayerSide = coinFlip === 0 ? "w" : "b";
+    this.startingPlayerSide = "w";
+  }
+
+  private updateTurnDisplay() {
+    const turn = this.turnCount % 4;
+    let text = "";
+    switch (turn) {
+      case 0:
+        text = "White P1 (You)";
+        break;
+      case 1:
+        text = "Black P1 (AI)";
+        break;
+      case 2:
+        text = "White P2 (AI)";
+        break;
+      case 3:
+        text = "Black P2 (AI)";
+        break;
+    }
+    this.gameInterface.updateTurnInfo(text);
   }
 
   private markPossibleMoveFields(chessPosition: PieceChessPosition): void {
@@ -73,7 +98,7 @@ export class ChessGameEngine {
       verbose: true,
     });
 
-    possibleMoves.forEach((move) => {
+    possibleMoves.forEach((move: { to: string }) => {
       const { row, column } = getMatrixPosition(move.to);
 
       this._chessBoard.markPlaneAsDroppable(row, column);
@@ -95,9 +120,20 @@ export class ChessGameEngine {
     this.gameInterface.addToBlackScore(captured);
   }
 
-  private notifyAiToMove(playerMove: Move) {
+  private notifyAiToMove(_playerMove: Move) {
     this.gameInterface.enableOpponentTurnNotification();
-    this.worker.postMessage({ type: "aiMove", playerMove });
+
+    const turn = this.turnCount % 4;
+    const isWhite = turn === 0 || turn === 2;
+    const aiColor = isWhite ? "w" : "b";
+
+    this.worker.postMessage({
+      type: "init",
+      fen: this.chessGame.fen(),
+      color: aiColor,
+    });
+
+    this.worker.postMessage({ type: "calculate" });
   }
 
   private performPlayerMove(droppedField: Object3D): MoveResult {
@@ -111,6 +147,9 @@ export class ChessGameEngine {
       promotedPiece,
       stopAi,
     } = this.performPlayerMove(droppedField);
+
+    this.turnCount++;
+    this.updateTurnDisplay();
 
     const isGameOver = this.chessGame.game_over();
 
@@ -132,16 +171,25 @@ export class ChessGameEngine {
       }
 
       const actionResult = this.performAiMove(e.data.aiMove);
+
+      this.turnCount++;
+      this.updateTurnDisplay();
+
       const isGameOver = this.chessGame.game_over();
 
       cb(actionResult);
-      this.gameInterface.disableOpponentTurnNotification();
 
-      if (!isGameOver) {
+      if (isGameOver) {
+        this.onEndGameCallback(this.chessGame, this.startingPlayerSide);
         return;
       }
 
-      this.onEndGameCallback(this.chessGame, this.startingPlayerSide);
+      const turn = this.turnCount % 4;
+      if (turn === 0) {
+        this.gameInterface.disableOpponentTurnNotification();
+      } else {
+        this.notifyAiToMove(e.data.aiMove);
+      }
     };
   }
 
@@ -398,15 +446,15 @@ export class ChessGameEngine {
   }
 
   private initChessAi() {
+    this.updateTurnDisplay();
     if (this.startingPlayerSide !== "w") {
       this.gameInterface.enableOpponentTurnNotification();
+      this.worker.postMessage({
+        type: "init",
+        fen: this.chessGame.fen(),
+        color: getOppositeColor(this.startingPlayerSide),
+      });
     }
-
-    this.worker.postMessage({
-      type: "init",
-      fen: this.chessGame.fen(),
-      color: getOppositeColor(this.startingPlayerSide),
-    });
   }
 
   private removePieceFromWorld(piece: Piece): void {
