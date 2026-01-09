@@ -25,6 +25,8 @@ export interface LeaderboardEntry {
   wins: number;
   losses?: number;
   gamesPlayed?: number;
+  currentStreak?: number;
+  bestStreak?: number;
 }
 
 export class Lobby {
@@ -67,12 +69,23 @@ export class Lobby {
       this.renderRoom();
     });
 
-    this.socket.on("joined_room", ({ roomId, config, role }: { roomId: string; config: GameConfig; role: string }) => {
-      this.roomId = roomId;
-      this.currentConfig = config;
-      this.myRole = role;
-      this.renderRoom();
-    });
+    this.socket.on(
+      "joined_room",
+      ({
+        roomId,
+        config,
+        role,
+      }: {
+        roomId: string;
+        config: GameConfig;
+        role: string;
+      }) => {
+        this.roomId = roomId;
+        this.currentConfig = config;
+        this.myRole = role;
+        this.renderRoom();
+      }
+    );
 
     this.socket.on("player_joined", ({ config }) => {
       this.currentConfig = config;
@@ -132,10 +145,11 @@ export class Lobby {
     this.container.appendChild(tonBtnContainer);
 
     if (!this.tonConnectUI) {
-        this.tonConnectUI = new TonConnectUI({
-            manifestUrl: 'https://raw.githubusercontent.com/ton-community/tutorials/main/03-client/test/public/tonconnect-manifest.json', // Using a test manifest for now or localhost if configured
-            buttonRootId: 'ton-connect-btn'
-        });
+      this.tonConnectUI = new TonConnectUI({
+        manifestUrl:
+          "https://raw.githubusercontent.com/ton-community/tutorials/main/03-client/test/public/tonconnect-manifest.json", // Using a test manifest for now or localhost if configured
+        buttonRootId: "ton-connect-btn",
+      });
     }
 
     const teamInput = document.createElement("input");
@@ -147,18 +161,10 @@ export class Lobby {
     const createBtn = document.createElement("button");
     createBtn.innerText = "Create Game";
     createBtn.className = "btn";
-    
+
     // Auto-fill name from Telegram if available
-do {
-      const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
-} while (do {
-  condition
-} while (condition););
-      const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
-} while (do {
-  condition
-} while (condition););
-    
+    const telegramName = WebApp.initDataUnsafe?.user?.first_name || "Player";
+
     createBtn.onclick = () =>
       this.socket.emit("create_room", {
         name: telegramName,
@@ -186,10 +192,15 @@ do {
     const joinBtn = document.createElement("button");
     joinBtn.innerText = "Join Game";
     joinBtn.className = "btn";
-    
+
     joinBtn.onclick = () => {
       if (input.value) {
-        this.socket.emit("join_room", { roomId: input.value, name: telegramName });
+        const telegramName =
+          WebApp.initDataUnsafe?.user?.first_name || "Player";
+        this.socket.emit("join_room", {
+          roomId: input.value,
+          name: telegramName,
+        });
       }
     };
 
@@ -214,7 +225,9 @@ do {
       const li = document.createElement("li");
       li.innerText = `#${i + 1} ${entry.name} (${entry.team}): ${
         entry.wins
-      } wins | ${entry.losses || 0} losses | ${entry.gamesPlayed || 0} games`;
+      } wins | ${entry.losses || 0} losses | Streak: ${
+        entry.currentStreak || 0
+      } (Best: ${entry.bestStreak || 0})`;
       li.style.padding = "10px";
       li.style.borderBottom = "1px solid #444";
       li.style.fontSize = "18px";
@@ -250,7 +263,10 @@ do {
     const roleNames = ["White P1", "Black P1", "White P2", "Black P2"];
 
     roles.forEach((role, index) => {
-      const p = this.currentConfig?.[role as keyof GameConfig];
+      if (!this.currentConfig) return;
+      const p = this.currentConfig[role as keyof GameConfig];
+      if (!p) return;
+
       const div = document.createElement("div");
       div.style.padding = "10px";
       div.style.border = "1px solid white";
@@ -260,7 +276,7 @@ do {
             <strong>${roleNames[index]}</strong><br>
             Type: ${p.type}<br>
             Name: ${p.name}<br>
-            Team: ${p.team || '-'}
+            Team: ${p.team || "-"}
         `;
 
       // Allow changing AI/Human if I am the creator (p1_white for now)
@@ -283,7 +299,7 @@ do {
             newConfig[role as keyof GameConfig].name = "Waiting...";
           }
           this.socket.emit("update_config", {
-            roomId: this.roomId,
+            roomId: this.roomId || "",
             config: newConfig,
           });
         };
@@ -300,7 +316,7 @@ do {
       startBtn.innerText = "Start Game";
       startBtn.className = "btn";
       if (this.roomId) {
-        }
+      }
       this.container.appendChild(startBtn);
     } else {
       const waitMsg = document.createElement("p");

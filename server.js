@@ -34,8 +34,20 @@ io.on("connection", (socket) => {
     if (entry) {
       entry.wins++;
       entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
+      entry.currentStreak = (entry.currentStreak || 0) + 1;
+      if ((entry.currentStreak || 0) > (entry.bestStreak || 0)) {
+        entry.bestStreak = entry.currentStreak;
+      }
     } else {
-      leaderboard.push({ name, wins: 1, losses: 0, gamesPlayed: 1, team: team || "Anonymous" });
+      leaderboard.push({ 
+        name, 
+        wins: 1, 
+        losses: 0, 
+        gamesPlayed: 1, 
+        team: team || "Anonymous",
+        currentStreak: 1,
+        bestStreak: 1
+      });
     }
     leaderboard.sort((a, b) => b.wins - a.wins);
     io.emit("leaderboard_data", leaderboard);
@@ -46,8 +58,17 @@ io.on("connection", (socket) => {
     if (entry) {
       entry.losses = (entry.losses || 0) + 1;
       entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
+      entry.currentStreak = 0;
     } else {
-      leaderboard.push({ name, wins: 0, losses: 1, gamesPlayed: 1, team: team || "Anonymous" });
+      leaderboard.push({ 
+        name, 
+        wins: 0, 
+        losses: 1, 
+        gamesPlayed: 1, 
+        team: team || "Anonymous",
+        currentStreak: 0,
+        bestStreak: 0
+      });
     }
     io.emit("leaderboard_data", leaderboard);
   });

@@ -1,5 +1,6 @@
 {
-  "url": "https://your-app-url.com",
-  "name": "2v2 Chess",
-  "iconUrl": "https://your-app-url.com/icon.png"
+  "url": "http://localhost:8080",
+  "name": "2v2 Chess Prototype",
+  "iconUrl": "https://cdn-icons-png.flaticon.com/512/3069/3069186.png",
+  "description": "A 2v2 multiplayer chess game on TON"
 }

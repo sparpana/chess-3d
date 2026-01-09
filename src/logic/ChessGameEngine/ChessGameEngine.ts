@@ -82,44 +82,40 @@ export class ChessGameEngine {
   private updateTurnDisplay() {
     const turn = this.turnCount % 4;
     let roleKey = "";
+    let colorName = "";
+
     switch (turn) {
       case 0:
         roleKey = "p1_white";
+        colorName = "White P1";
         break;
       case 1:
         roleKey = "p1_black";
+        colorName = "Black P1";
         break;
       case 2:
         roleKey = "p2_white";
+        colorName = "White P2";
         break;
       case 3:
         roleKey = "p2_black";
+        colorName = "Black P2";
         break;
     }
 
-    let text = "";
+    let text = `${colorName}'s Turn`;
+
     if (this.gameConfig) {
-      // @ts-ignore
-      const player = this.gameConfig[roleKey];
-      const isMe = this.myRole === roleKey;
-      text = `${player.name} ${isMe ? "(You)" : ""}`;
-    } else {
-      // Fallback
-      switch (turn) {
-        case 0:
-          text = "White P1";
-          break;
-        case 1:
-          text = "Black P1";
-          break;
-        case 2:
-          text = "White P2";
-          break;
-        case 3:
-          text = "Black P2";
-          break;
+      const player = this.gameConfig[roleKey as keyof GameConfig];
+      if (player) {
+        text += ` (${player.name})`;
       }
     }
+
+    if (this.myRole && this.myRole === roleKey) {
+      text += " (YOU)";
+    }
+
     this.gameInterface.updateTurnInfo(text);
   }
 
