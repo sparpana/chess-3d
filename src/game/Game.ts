@@ -7,7 +7,8 @@ import { ChessScene } from "scenes/ChessScene/ChessScene";
 import { ReinhardToneMapping, sRGBEncoding, WebGLRenderer } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { GameOptions } from "./types";
-import { Lobby } from "logic/Lobby/Lobby";
+import { Lobby, GameConfig } from "logic/Lobby/Lobby";
+import { Socket } from "socket.io-client";
 
 export class Game {
   private width = window.innerWidth;
@@ -17,6 +18,9 @@ export class Game {
   private loader: GLTFLoader;
   private renderer: WebGLRenderer;
   private activeScene: BasicScene | null;
+  private socket: Socket | null = null;
+  private myRole: string | null = null;
+  private gameConfig: GameConfig | null = null;
 
   private options: GameOptions;
 
@@ -115,6 +119,33 @@ export class Game {
   private onEndGame(chessInstance: ChessInstance, playerColor: PieceColor) {
     const endMsg = this.getEndGameMessage(chessInstance, playerColor);
 
+    if (this.socket && this.myRole && this.gameConfig) {
+      const myPlayerConfig = this.gameConfig[this.myRole as keyof GameConfig];
+      const myName = myPlayerConfig.name;
+      const myTeam = myPlayerConfig.team || "Anonymous";
+
+      const myColor = this.myRole.includes("white") ? "w" : "b";
+      const isCheckmate = chessInstance.in_checkmate();
+      const turn = chessInstance.turn(); // 'w' or 'b' - who has no moves
+
+      // If checkmate:
+      // If turn === myColor, I lost (I have no moves).
+      // If turn !== myColor, I won.
+
+      if (isCheckmate) {
+        if (turn !== myColor) {
+          // I won
+          this.socket.emit("report_win", { name: myName, team: myTeam });
+        } else {
+          // I lost
+          this.socket.emit("report_loss", { name: myName, team: myTeam });
+        }
+      } else {
+        // Draw
+        // Ideally report draw
+      }
+    }
+
     this.createEndPopup(endMsg);
   }
 
@@ -155,6 +186,10 @@ export class Game {
 
   private showLobby(): void {
     const lobby = new Lobby((roomId, config, myRole, socket) => {
+      this.socket = socket;
+      this.myRole = myRole;
+      this.gameConfig = config;
+
       this.activeScene.start(
         (chessInstance: ChessInstance, playerColor: PieceColor) => {
           this.onEndGame(chessInstance, playerColor);

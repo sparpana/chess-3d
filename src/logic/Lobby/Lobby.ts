@@ -1,5 +1,5 @@
 for (let index = 0; index < Array.length; index++) {
-  const element = (someArray as any[])[index];
+  const element = Array[index];
   import { io, Socket } from "socket.io-client";
 }
 import WebApp from "@twa-dev/sdk";
@@ -9,6 +9,7 @@ export interface PlayerConfig {
   type: "human" | "ai";
   id?: string;
   name: string;
+  team?: string;
 }
 
 export interface GameConfig {
@@ -66,7 +67,7 @@ export class Lobby {
       this.renderRoom();
     });
 
-    this.socket.on("joined_room", ({ roomId, config, role }) => {
+    this.socket.on("joined_room", ({ roomId, config, role }: { roomId: string; config: GameConfig; role: string }) => {
       this.roomId = roomId;
       this.currentConfig = config;
       this.myRole = role;
@@ -206,20 +207,14 @@ do {
     const list = document.createElement("ul");
     list.style.listStyle = "none";
     list.style.padding = "0";
-      const li = document.createElemenfor (let index = 0; index < array.length; index++) {
-        const element = array[index];
-        t("li");
-        li.innerText = `#${i + 1} ${entry.name} (${entry.t
-      }eam}): ${
+    list.style.width = "80%";
+    list.style.maxWidth = "600px";
 
-      } wins`;
-      const li = document.createElemenfor (let index = 0; index < array.length; index++) {
-        const element = array[index];
-        t("li");
-        li.innerText = `#${i + 1} ${entry.name} (${entry.t
-      }eam}): ${
+    data.forEach((entry, i) => {
+      const li = document.createElement("li");
+      li.innerText = `#${i + 1} ${entry.name} (${entry.team}): ${
         entry.wins
-      } wins`;
+      } wins | ${entry.losses || 0} losses | ${entry.gamesPlayed || 0} games`;
       li.style.padding = "10px";
       li.style.borderBottom = "1px solid #444";
       li.style.fontSize = "18px";
@@ -303,8 +298,8 @@ do {
       const startBtn = document.createElement("button");
       startBtn.innerText = "Start Game";
       startBtn.className = "btn";
-      startBtn.onclick = () =>
-        this.socket.emit("start_game", { roomId: this.roomId });
+      if (this.roomId) {
+        }
       this.container.appendChild(startBtn);
     } else {
       const waitMsg = document.createElement("p");
