@@ -198,7 +198,7 @@ do {
     this.container.appendChild(joinContainer);
   }
 
-  private renderLeaderboard(data: LeaderboardEntry[]) {
+  private renderLeaderboard(data?: LeaderboardEntry[]) {
     this.container.innerHTML = "";
     const title = document.createElement("h2");
     title.innerText = "Global Leaderboard";
@@ -259,7 +259,8 @@ do {
       div.innerHTML = `
             <strong>${roleNames[index]}</strong><br>
             Type: ${p.type}<br>
-            Name: ${p.name}
+            Name: ${p.name}<br>
+            Team: ${p.team || '-'}
         `;
 
       // Allow changing AI/Human if I am the creator (p1_white for now)
