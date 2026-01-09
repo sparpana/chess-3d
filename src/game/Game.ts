@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import { ChessInstance, PieceColor } from "chess.js";
 import { CustomLoadingManager } from "logic/LoadingManager/LoadingManager";
 import { BasicScene } from "scenes/BasicScene/BasicScene";
@@ -5,6 +7,7 @@ import { ChessScene } from "scenes/ChessScene/ChessScene";
 import { ReinhardToneMapping, sRGBEncoding, WebGLRenderer } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { GameOptions } from "./types";
+import { Lobby } from "logic/Lobby/Lobby";
 
 export class Game {
   private width = window.innerWidth;
@@ -147,28 +150,22 @@ export class Game {
 
     this.activeScene.init();
 
-    this.addStartButton();
+    this.showLobby();
   }
 
-  private addStartButton(): void {
-    const div = document.createElement("DIV");
-    const startBtn = document.createElement("BUTTON");
-    startBtn.classList.add("btn");
-    startBtn.innerHTML = "Start Game";
-
-    startBtn.onclick = () => {
+  private showLobby(): void {
+    const lobby = new Lobby((roomId, config, myRole, socket) => {
       this.activeScene.start(
         (chessInstance: ChessInstance, playerColor: PieceColor) => {
           this.onEndGame(chessInstance, playerColor);
-        }
+        },
+        config,
+        myRole,
+        socket,
+        roomId
       );
-      div.remove();
-    };
-
-    div.classList.add("center-mid");
-    div.appendChild(startBtn);
-
-    document.body.appendChild(div);
+    });
+    lobby.show();
   }
 
   private updateGame(): void {

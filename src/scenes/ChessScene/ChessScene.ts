@@ -11,6 +11,9 @@ import {
   PromotionResult,
 } from "logic/ChessGameEngine/types";
 
+import { GameConfig } from "logic/Lobby/Lobby";
+import { Socket } from "socket.io-client";
+
 export class ChessScene extends BasicScene {
   private chessGameEngine: ChessGameEngine;
   private raycaster: Raycaster;
@@ -179,7 +182,13 @@ export class ChessScene extends BasicScene {
     this.setupScene();
   }
 
-  start(onEndGame: OnEndGame): void {
+  start(
+    onEndGame: OnEndGame,
+    config?: GameConfig,
+    myRole?: string | null,
+    socket?: Socket,
+    roomId?: string
+  ): void {
     this.orbitals.autoRotate = false;
     const playerStartingSide = this.chessGameEngine.start(
       (actionResult: ActionResult) => {
@@ -192,7 +201,11 @@ export class ChessScene extends BasicScene {
           removedPiecesIds: [removedPieceId],
           promotedPiece,
         });
-      }
+      },
+      config,
+      myRole,
+      socket,
+      roomId
     );
     this.setCameraPosition(playerStartingSide);
   }

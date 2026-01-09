@@ -1,4 +1,4 @@
-import { PieceColor } from "chess.js";
+type PieceColor = "w" | "b";
 import { BLACK_ICONS, WHITE_ICONS } from "constants/piece-icons";
 import { PieceSet, PromotablePieces } from "logic/PiecesContainer/types";
 import { OnPromoteBtnClick } from "./types";
@@ -106,35 +106,37 @@ export class GameInterface {
     el.style.display = "none";
   }
 
-  private createTurnInfoElement(): void {
+  private createTurnInfoElement(id: string): void {
     const div = document.createElement("DIV");
-    div.setAttribute("id", this.turnInfoElementId);
+    div.setAttribute("id", id);
+    div.classList.add("turn-info");
     div.style.position = "absolute";
     div.style.top = "10px";
     div.style.left = "50%";
     div.style.transform = "translateX(-50%)";
     div.style.color = "white";
-    div.style.fontSize = "24px";
+    div.style.fontSize = "20px";
     div.style.fontWeight = "bold";
+    div.style.textShadow = "1px 1px 2px black";
     div.style.zIndex = "100";
-    div.style.textShadow = "2px 2px 4px #000000";
+    div.innerText = "Waiting for game to start...";
     document.body.appendChild(div);
   }
 
   updateTurnInfo(text: string): void {
     const el = document.getElementById(this.turnInfoElementId);
-    if (el) el.innerHTML = text;
+    if (el) {
+      el.innerText = text;
+    }
   }
 
-  init(playerColor: PieceColor): void {
-    const isPlayerWhiteColor = playerColor === "w";
-
-    this.createScoreElement(this.whiteScoreElementId, isPlayerWhiteColor);
-    this.createScoreElement(this.blackScoreElementId, !isPlayerWhiteColor);
+  init(): void {
+    this.createScoreElement(this.whiteScoreElementId, true);
+    this.createScoreElement(this.blackScoreElementId, false);
     this.createOpponentTurnNotificationElement(
       this.opponentTurnNotificationElementId
     );
-    this.createTurnInfoElement();
+    this.createTurnInfoElement(this.turnInfoElementId);
   }
 
   cleanup(): void {

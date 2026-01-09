@@ -26,11 +26,14 @@ module.exports = {
   module: {
     rules: [
       {
-        use: "ts-loader",
-        exclude: [
-          /node_modules/,
-          /assets/,
-        ],
+        test: /\.ts?$/,
+        use: {
+          loader: "ts-loader",
+          options: {
+            configFile: path.resolve(__dirname, "tsconfig.json"),
+          },
+        },
+        exclude: [/node_modules/, /assets/],
       },
       {
         test: /\.glb$/i,

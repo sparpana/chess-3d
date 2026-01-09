@@ -15,6 +15,8 @@ import {
 } from "three";
 import createCannonDebugger from "cannon-es-debugger";
 import { OnEndGame } from "logic/ChessGameEngine/types";
+import { Socket } from "socket.io-client";
+import { GameConfig } from "logic/Lobby/Lobby";
 
 export abstract class BasicScene extends Scene {
   private _renderer: Renderer;
@@ -35,7 +37,13 @@ export abstract class BasicScene extends Scene {
   resizeListener: () => void;
 
   abstract init(): void;
-  abstract start(onEndGame: OnEndGame): void;
+  abstract start(
+    onEndGame: OnEndGame,
+    config?: GameConfig,
+    myRole?: string | null,
+    socket?: Socket,
+    roomId?: string
+  ): void;
 
   constructor(props: BasicSceneProps) {
     super();

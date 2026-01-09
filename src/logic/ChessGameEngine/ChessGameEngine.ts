@@ -23,6 +23,8 @@ import {
   WebWorkerEvent,
 } from "./types";
 import { GameInterface } from "logic/GameInterface/GameInterface";
+import { GameConfig } from "logic/Lobby/Lobby";
+import { Socket } from "socket.io-client";
 import {
   getChessNotation,
   getMatrixPosition,
@@ -42,6 +44,10 @@ export class ChessGameEngine {
   private world: World;
 
   private turnCount = 0;
+  private gameConfig: GameConfig | null = null;
+  private myRole: string | null = null;
+  private socket: Socket | null = null;
+  private roomId: string | null = null;
 
   private selectedInitialPosition: Vec3;
   private selected: Piece | null;
@@ -75,20 +81,44 @@ export class ChessGameEngine {
 
   private updateTurnDisplay() {
     const turn = this.turnCount % 4;
-    let text = "";
+    let roleKey = "";
     switch (turn) {
       case 0:
-        text = "White P1 (You)";
+        roleKey = "p1_white";
         break;
       case 1:
-        text = "Black P1 (AI)";
+        roleKey = "p1_black";
         break;
       case 2:
-        text = "White P2 (AI)";
+        roleKey = "p2_white";
         break;
       case 3:
-        text = "Black P2 (AI)";
+        roleKey = "p2_black";
         break;
+    }
+
+    let text = "";
+    if (this.gameConfig) {
+      // @ts-ignore
+      const player = this.gameConfig[roleKey];
+      const isMe = this.myRole === roleKey;
+      text = `${player.name} ${isMe ? "(You)" : ""}`;
+    } else {
+      // Fallback
+      switch (turn) {
+        case 0:
+          text = "White P1";
+          break;
+        case 1:
+          text = "Black P1";
+          break;
+        case 2:
+          text = "White P2";
+          break;
+        case 3:
+          text = "Black P2";
+          break;
+      }
     }
     this.gameInterface.updateTurnInfo(text);
   }
@@ -123,9 +153,55 @@ export class ChessGameEngine {
   }
 
   private notifyAiToMove(_playerMove: Move) {
+    const turn = this.turnCount % 4;
+    let roleKey = "";
+    switch (turn) {
+      case 0:
+        roleKey = "p1_white";
+        break;
+      case 1:
+        roleKey = "p1_black";
+        break;
+      case 2:
+        roleKey = "p2_white";
+        break;
+      case 3:
+        roleKey = "p2_black";
+        break;
+    }
+
+    let isAi = false;
+    let isRemote = false;
+
+    if (this.gameConfig) {
+      // @ts-ignore
+      const player = this.gameConfig[roleKey];
+      if (player.type === "ai") {
+        // Only the host (p1_white) calculates AI moves
+        if (this.myRole === "p1_white") {
+          isAi = true;
+        } else {
+          isRemote = true;
+        }
+      } else if (this.myRole !== roleKey) {
+        isRemote = true;
+      }
+    } else {
+      isAi = turn !== 0;
+    }
+
+    if (isRemote) {
+      this.gameInterface.enableOpponentTurnNotification();
+      return;
+    }
+
+    if (!isAi) {
+      this.gameInterface.disableOpponentTurnNotification();
+      return;
+    }
+
     this.gameInterface.enableOpponentTurnNotification();
 
-    const turn = this.turnCount % 4;
     const isWhite = turn === 0 || turn === 2;
     const aiColor = isWhite ? "w" : "b";
 
@@ -149,6 +225,10 @@ export class ChessGameEngine {
       promotedPiece,
       stopAi,
     } = this.performPlayerMove(droppedField);
+
+    if (this.socket && this.roomId) {
+      this.socket.emit("make_move", { roomId: this.roomId, move: playerMove });
+    }
 
     this.turnCount++;
     this.updateTurnDisplay();
@@ -193,6 +273,29 @@ export class ChessGameEngine {
         this.notifyAiToMove(e.data.aiMove);
       }
     };
+  }
+
+  private performRemoteMove(move: Move) {
+    const { from, to, color, piece } = move;
+    const fromPos = getMatrixPosition(from);
+    const toPos = getMatrixPosition(to);
+
+    const toField = this.chessBoard.getField(toPos.row, toPos.column);
+    const movedPiece = this.piecesContainer.getPiece(color, piece, fromPos);
+
+    this.moveAiPiece(toField, movedPiece);
+
+    this.turnCount++;
+    this.updateTurnDisplay();
+
+    const isGameOver = this.chessGame.game_over();
+
+    if (isGameOver) {
+      this.onEndGameCallback(this.chessGame, this.startingPlayerSide);
+      return;
+    }
+
+    this.notifyAiToMove(move);
   }
 
   private performAiMove(move: Move): ActionResult {
@@ -353,7 +456,31 @@ export class ChessGameEngine {
   }
 
   private isPlayerColor(color: PieceColor): boolean {
-    return color === this.startingPlayerSide;
+    const turn = this.turnCount % 4;
+
+    if (this.gameConfig) {
+      let roleKey = "";
+      switch (turn) {
+        case 0:
+          roleKey = "p1_white";
+          break;
+        case 1:
+          roleKey = "p1_black";
+          break;
+        case 2:
+          roleKey = "p2_white";
+          break;
+        case 3:
+          roleKey = "p2_black";
+          break;
+      }
+      return (
+        this.myRole === roleKey &&
+        color === (roleKey.includes("white") ? "w" : "b")
+      );
+    }
+
+    return color === this.startingPlayerSide && turn === 0;
   }
 
   private promotePlayerPiece(
@@ -536,13 +663,27 @@ export class ChessGameEngine {
   start(
     aiMoveCallback: AiMoveCallback,
     onEndGame: OnEndGame,
-    onPromotion: OnPromotion
+    onPromotion: OnPromotion,
+    config?: GameConfig,
+    myRole?: string | null,
+    socket?: Socket,
+    roomId?: string
   ): PieceColor {
     this.onEndGameCallback = onEndGame;
     this.onPromotionCallback = onPromotion;
+    this.gameConfig = config || null;
+    this.myRole = myRole || null;
+    this.socket = socket || null;
+    this.roomId = roomId || null;
+
+    if (this.socket) {
+      this.socket.on("move_made", (move: Move) => {
+        this.performRemoteMove(move);
+      });
+    }
 
     this.drawSide();
-    this.gameInterface.init(this.startingPlayerSide);
+    this.gameInterface.init();
     this.addWebWorkerListener(aiMoveCallback);
     this.initChessAi();
 
