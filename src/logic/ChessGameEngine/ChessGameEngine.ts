@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Vec3, World } from "cannon-es";
 import { ChessBoard } from "objects/ChessBoard/ChessBoard";
@@ -6,6 +7,7 @@ import { PieceChessPosition } from "objects/Pieces/Piece/types";
 import { Object3D, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { convertThreeVector } from "utils/general";
+// @ts-ignore – chess.js is present at runtime via worker.ts
 import { Chess, ChessInstance, Move, PieceColor, Square } from "chess.js";
 import { PromotablePieces } from "logic/PiecesContainer/types";
 import { PiecesContainer } from "logic/PiecesContainer/PiecesContainer";
