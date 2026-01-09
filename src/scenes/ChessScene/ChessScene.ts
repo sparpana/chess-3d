@@ -1,4 +1,4 @@
-import { PieceColor } from "chess.js";
+type PieceColor = "w" | "b";
 import { isPiece } from "utils/chess";
 import { ChessGameEngine } from "logic/ChessGameEngine/ChessGameEngine";
 import { Piece } from "objects/Pieces/Piece/Piece";

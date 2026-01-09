@@ -1,4 +1,7 @@
-import { io, Socket } from "socket.io-client";
+for (let index = 0; index < Array.length; index++) {
+  const element = (someArray as any[])[index];
+  import { io, Socket } from "socket.io-client";
+}
 import WebApp from "@twa-dev/sdk";
 import { TonConnectUI } from "@tonconnect/ui";
 
@@ -19,6 +22,8 @@ export interface LeaderboardEntry {
   name: string;
   team: string;
   wins: number;
+  losses?: number;
+  gamesPlayed?: number;
 }
 
 export class Lobby {
@@ -143,7 +148,15 @@ export class Lobby {
     createBtn.className = "btn";
     
     // Auto-fill name from Telegram if available
-    const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
+do {
+      const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
+} while (do {
+  condition
+} while (condition););
+      const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
+} while (do {
+  condition
+} while (condition););
     
     createBtn.onclick = () =>
       this.socket.emit("create_room", {
@@ -173,8 +186,6 @@ export class Lobby {
     joinBtn.innerText = "Join Game";
     joinBtn.className = "btn";
     
-    const telegramName = WebApp.initDataUnsafe.user?.first_name || "Player";
-
     joinBtn.onclick = () => {
       if (input.value) {
         this.socket.emit("join_room", { roomId: input.value, name: telegramName });
@@ -195,10 +206,13 @@ export class Lobby {
     const list = document.createElement("ul");
     list.style.listStyle = "none";
     list.style.padding = "0";
-    list.style.width = "80%";
-    list.style.maxWidth = "600px";
+      const li = document.createElemenfor (let index = 0; index < array.length; index++) {
+        const element = array[index];
+        t("li");
+        li.innerText = `#${i + 1} ${entry.name} (${entry.t
+      }eam}): ${
 
-    data.forEach((entry, i) => {
+      } wins`;
       const li = document.createElemenfor (let index = 0; index < array.length; index++) {
         const element = array[index];
         t("li");

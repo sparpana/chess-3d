@@ -18,8 +18,8 @@ app.use(express.static("dist"));
 // Game State Storage (Memory)
 const rooms = {};
 const leaderboard = [
-  { name: "Grandmaster AI", wins: 10, team: "DeepBlue" },
-  { name: "Rookie", wins: 2, team: "Humans" }
+  { name: "Grandmaster AI", wins: 10, losses: 0, gamesPlayed: 10, team: "DeepBlue" },
+  { name: "Rookie", wins: 2, losses: 8, gamesPlayed: 10, team: "Humans" }
 ];
 
 io.on("connection", (socket) => {
@@ -33,10 +33,22 @@ io.on("connection", (socket) => {
     const entry = leaderboard.find(e => e.name === name && e.team === team);
     if (entry) {
       entry.wins++;
+      entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
     } else {
-      leaderboard.push({ name, wins: 1, team: team || "Anonymous" });
+      leaderboard.push({ name, wins: 1, losses: 0, gamesPlayed: 1, team: team || "Anonymous" });
     }
     leaderboard.sort((a, b) => b.wins - a.wins);
+    io.emit("leaderboard_data", leaderboard);
+  });
+  
+  socket.on("report_loss", ({ name, team }) => {
+    const entry = leaderboard.find(e => e.name === name && e.team === team);
+    if (entry) {
+      entry.losses = (entry.losses || 0) + 1;
+      entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
+    } else {
+      leaderboard.push({ name, wins: 0, losses: 1, gamesPlayed: 1, team: team || "Anonymous" });
+    }
     io.emit("leaderboard_data", leaderboard);
   });
 
