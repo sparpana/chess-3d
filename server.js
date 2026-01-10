@@ -1,11 +1,20 @@
 const express = require("express");
 const http = require("http");
+const path = require("path");
 const { Server } = require("socket.io");
 const { v4: uuidv4 } = require("uuid");
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 const server = http.createServer(app);
+
+app.use(express.static(path.join(__dirname, "dist")));
+
+// Basic Error Handling to prevent crashes
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -13,7 +22,7 @@ const io = new Server(server, {
   }
 });
 
-app.use(express.static("dist"));
+// app.use(express.static("dist")); // Removed old line
 
 // Game State Storage (Memory)
 const rooms = {};
