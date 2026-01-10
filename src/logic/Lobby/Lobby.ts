@@ -108,9 +108,12 @@ export class Lobby {
       const waitingList = document.getElementById("waiting-list");
       if (waitingList) {
         waitingList.innerHTML = "";
-        Object.values(users).forEach((u: any) => {
+        Object.values(users).forEach((u: unknown) => {
           const li = document.createElement("li");
-          li.innerText = `${u.name} - ${u.status}`;
+          const user = u as { name?: string; status?: string };
+          li.innerText = `${user.name || "Unknown"} - ${
+            user.status || "offline"
+          }`;
           waitingList.appendChild(li);
         });
       }
