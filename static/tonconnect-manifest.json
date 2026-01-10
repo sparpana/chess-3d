@@ -1,5 +1,5 @@
 {
-  "url": "http://localhost:8080",
+  "url": "https://chess-3d.onrender.com",
   "name": "2v2 Chess Prototype",
   "iconUrl": "https://cdn-icons-png.flaticon.com/512/3069/3069186.png",
   "description": "A 2v2 multiplayer chess game on TON"
