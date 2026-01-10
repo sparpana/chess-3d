@@ -58,8 +58,11 @@ export abstract class BasicScene extends Scene {
 
     this.loader = loader;
     this.orbitals = new OrbitControls(this.camera, this._renderer.domElement);
-    this.orbitals.mouseButtons = {};
-    this.orbitals.enableZoom = false;
+    this.orbitals.enableZoom = true;
+    this.orbitals.enablePan = false;
+    this.orbitals.minDistance = 5;
+    this.orbitals.maxDistance = 20;
+    this.orbitals.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
     this.background = new Color(0xefefef);
     this.world = new World({ gravity: new Vec3(0, -9.82, 0) });
 

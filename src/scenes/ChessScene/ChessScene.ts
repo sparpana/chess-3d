@@ -35,12 +35,12 @@ export class ChessScene extends BasicScene {
     this.raycaster = new Raycaster();
     this.clickPointer = new Vector2();
 
-    window.addEventListener("mousedown", this.onMouseDown);
-    window.addEventListener("mouseup", this.onMouseUp);
+    window.addEventListener("pointerdown", this.onPointerDown);
+    window.addEventListener("pointerup", this.onPointerUp);
     window.addEventListener("pointermove", this.onPointerMove);
   }
 
-  private onMouseDown = (event: MouseEvent): void => {
+  private onPointerDown = (event: PointerEvent): void => {
     const { x, y } = this.getCoords(event);
     this.clickPointer.x = x;
     this.clickPointer.y = y;
@@ -68,17 +68,22 @@ export class ChessScene extends BasicScene {
       return;
     }
 
+    // Disable camera controls when a piece is selected
+    this.orbitals.enabled = false;
     this.chessGameEngine.select(lastParent);
   }
 
-  private onMouseUp = (): void => {
+  private onPointerUp = (): void => {
+    // Re-enable camera controls
+    this.orbitals.enabled = true;
+
     if (!this.chessGameEngine.isAnySelected()) {
       return;
     }
     const intersects = this.raycaster.intersectObjects(this.children);
     const item = intersects.find((el) => el.object.userData.ground);
 
-    const actionResult = this.chessGameEngine.deselect(item.object);
+    const actionResult = this.chessGameEngine.deselect(item?.object);
 
     if (!actionResult) {
       return;
@@ -87,11 +92,11 @@ export class ChessScene extends BasicScene {
     this.onActionPerformed(actionResult);
   };
 
-  private onPointerMove = (event: MouseEvent) => {
+  private onPointerMove = (event: PointerEvent) => {
     this.movePiece(event);
   };
 
-  private movePiece(event: MouseEvent): void {
+  private movePiece(event: PointerEvent): void {
     if (!this.chessGameEngine.isAnySelected()) {
       return;
     }

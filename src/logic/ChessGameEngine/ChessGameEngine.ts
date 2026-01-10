@@ -629,11 +629,11 @@ export class ChessGameEngine {
     this.setSelectedPiece(piece);
   }
 
-  deselect(intersectedField: Object3D): ActionResult | undefined {
-    const { droppable } = intersectedField.userData;
+  deselect(intersectedField?: Object3D): ActionResult | undefined {
+    const droppable = intersectedField?.userData?.droppable;
     let actionResult: ActionResult;
 
-    if (!droppable) {
+    if (!droppable || !intersectedField) {
       this.resetSelectedPiecePosition();
     } else {
       actionResult = this.dropPiece(intersectedField);
