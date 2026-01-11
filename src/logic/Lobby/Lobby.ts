@@ -36,13 +36,6 @@ export interface GameConfig {
 }
 
 export class Lobby {
-  [x: string]: never;
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // (removed invalid do/while fragment)
-    // @ts-ignore – index signature conflict with Socket type
-  } while (async function (params: type) {
-      condition;
-    });
   private socket: Socket;
   private container: HTMLDivElement;
 
