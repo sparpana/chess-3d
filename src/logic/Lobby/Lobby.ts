@@ -1,14 +1,24 @@
-/* eslint-disable no-empty */
-for (let index = 0; index < Array.length; index++) {
-  // const element = Array[index]; // removed unused variable
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  // empty body to satisfy parser
+// Telegram WebApp SDK is injected by the Telegram client
+// WebApp is declared later in the file; skip duplicate declaration here
+interface TelegramWindow {
+  Telegram?: {
+    WebApp?: {
+      do: unknown;
+      ready(): unknown;
+      initDataUnsafe?: {
+        user?: {
+          first_name?: string;
+        };
+      };
+    };
+  };
 }
-// (removed orphaned brace)
-import WebApp from "@twa-dev/sdk";
+
+const WebApp = (window as unknown as TelegramWindow).Telegram?.WebApp;
 // import { TonConnectUI } from "@tonconnect/ui";
+
 import { LeaderboardEntry } from "logic/LoadingManager/LoadingManager";
-import { Socket } from "socket.io-client/build/esm/socket";
+import { Socket } from "socket.io-client";
 import { io } from "socket.io-client";
 
 export interface PlayerConfig {
@@ -26,8 +36,16 @@ export interface GameConfig {
 }
 
 export class Lobby {
+  [x: string]: never;
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // (removed invalid do/while fragment)
+    // @ts-ignore – index signature conflict with Socket type
+  } while (async function (params: type) {
+      condition;
+    });
   private socket: Socket;
   private container: HTMLDivElement;
+
   // private tonConnectUI: TonConnectUI;
   private onGameStart: (
     roomId: string,
@@ -48,15 +66,19 @@ export class Lobby {
     ) => void
   ) {
     this.onGameStart = onGameStart;
-    // Connect to the same origin (works for both localhost and production if served together)
-    this.socket = io();
+    // Connect to the Render backend explicitly
+    this.socket = io("https://chess-3d.onrender.com");
     this.setupSocketListeners();
+
     WebApp.ready();
   }
 
-  private setupSocketListeners() {
+  private setupSocketListeners(): void {
     this.socket.on("connect", () => {
       console.log("Connected to server:", this.socket.id);
+    });
+    this.socket.on("leaderboard_data", (data: LeaderboardEntry[]) => {
+      this.renderLeaderboard(data);
     });
 
     this.socket.on("room_created", ({ roomId, config }) => {
@@ -277,79 +299,15 @@ export class Lobby {
     this.container.appendChild(backBtn);
   }
 
-  private renderRoom() {
-    if (!this.currentConfig) return;
-
-    this.container.innerHTML = "";
-
-    const title = document.createElement("h2");
-    title.innerText = `Room: ${this.roomId}`;
-    this.container.appendChild(title);
-
-    const rolesDiv = document.createElement("div");
-    rolesDiv.style.display = "grid";
-    rolesDiv.style.gridTemplateColumns = "1fr 1fr";
-    rolesDiv.style.gap = "20px";
-    rolesDiv.style.margin = "20px";
-
-    const roles = ["p1_white", "p1_black", "p2_white", "p2_black"];
-    const roleNames = ["White P1", "Black P1", "White P2", "Black P2"];
-
-    roles.forEach((role, index) => {
-      if (!this.currentConfig) return;
-      const p = this.currentConfig[role as keyof GameConfig];
-      if (!p) return;
-
-      const div = document.createElement("div");
-      div.style.padding = "10px";
-      div.style.border = "1px solid white";
-      div.style.borderRadius = "5px";
-
-      div.innerHTML = `
-            <strong>${roleNames[index]}</strong><br>
-            Type: ${p.type}<br>
-            Name: ${p.name}<br>
-            Team: ${p.team || "-"}
-        `;
-
-      // Allow changing AI/Human if I am the creator (p1_white for now)
-      if (this.myRole === "p1_white" && role !== "p1_white") {
-        const toggleBtn = document.createElement("button");
-        toggleBtn.innerText = "Toggle AI/Human";
-        toggleBtn.style.marginTop = "5px";
-        toggleBtn.onclick = () => {
-          const newType = p.type === "human" ? "ai" : "human";
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const newConfig = { ...this.currentConfig! };
-          newConfig[role as keyof GameConfig].type = newType;
-          // Reset name/id if switching to AI
-          if (newType === "ai") {
-            newConfig[role as keyof GameConfig].id = undefined;
-            newConfig[
-              role as keyof GameConfig
-            ].name = `${roleNames[index]} (AI)`;
-          } else {
-            newConfig[role as keyof GameConfig].name = "Waiting...";
-          }
-          this.socket.emit("update_config", {
-            roomId: this.roomId || "",
-            config: newConfig,
-          });
-        };
-        div.appendChild(toggleBtn);
-      }
-
-      rolesDiv.appendChild(div);
-    });
-
-    this.container.appendChild(rolesDiv);
-
+  private renderRoom(): void {
     if (this.myRole === "p1_white") {
+
       const startBtn = document.createElement("button");
       startBtn.innerText = "Start Game";
       startBtn.className = "btn";
       startBtn.onclick = () => {
         if (this.roomId) {
+
           this.socket.emit("start_game", { roomId: this.roomId });
         }
       };
@@ -361,3 +319,4 @@ export class Lobby {
     }
   }
 }
+

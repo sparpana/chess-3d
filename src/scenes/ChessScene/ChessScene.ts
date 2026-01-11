@@ -221,8 +221,8 @@ export class ChessScene extends BasicScene {
   }
 
   cleanup(): void {
-    window.removeEventListener("mousedown", this.onMouseDown);
-    window.removeEventListener("mouseup", this.onMouseUp);
+    window.removeEventListener("pointerdown", this.onPointerDown);
+    window.removeEventListener("pointerup", this.onPointerUp);
     window.removeEventListener("pointermove", this.onPointerMove);
     this.chessGameEngine.cleanup();
   }
