@@ -8,7 +8,7 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { run, get, serialize, all } from "./database.js";
+import { run, get, serialize, all } from "./database.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +63,9 @@ app.post("/api/auth/register", (req, res) => {
           email,
           balance: 0,
           kyc_status: "unverified",
+          kyc_level: 0,
+          phone: null,
+          phone_verified: 0
         },
       });
     }
@@ -89,6 +92,9 @@ app.post("/api/auth/login", (req, res) => {
         email: user.email,
         balance: user.balance,
         kyc_status: user.kyc_status,
+        kyc_level: user.kyc_level || 0,
+        phone: user.phone,
+        phone_verified: user.phone_verified || 0
       },
     });
   });
@@ -97,7 +103,7 @@ app.post("/api/auth/login", (req, res) => {
 // Get Profile (Protected)
 app.get("/api/user/profile", verifyToken, (req, res) => {
   get(
-    `SELECT id, username, email, balance, kyc_status, created_at FROM users WHERE id = ?`,
+    `SELECT id, username, email, balance, kyc_status, kyc_level, phone, phone_verified, created_at FROM users WHERE id = ?`,
     [req.userId],
     (err, user) => {
       if (err) return res.status(500).json({ msg: "Error" });
@@ -124,6 +130,20 @@ app.post("/api/user/claim", verifyToken, (req, res) => {
       res.json({ newBalance: row.balance });
     });
   });
+});
+
+// KYC Verification (Mock/Simple)
+app.post("/api/user/kyc", verifyToken, (req, res) => {
+  // TODO: Add file upload handling (multer)
+  // For now, auto-verify for prototype
+  run(
+    `UPDATE users SET kyc_status = 'verified' WHERE id = ?`,
+    [req.userId],
+    (err) => {
+      if (err) return res.status(500).json({ msg: "Database error" });
+      res.json({ msg: "KYC Verified Successfully", status: "verified" });
+    }
+  );
 });
 
 function verifyToken(req, res, next) {
@@ -204,17 +224,49 @@ io.on("connection", (socket) => {
     if (room) {
       socket.join(roomId);
 
-      // Assign next available human slot if any (Simple logic)
+      let assignedRole = null;
+      const roles = ["p1_black", "p2_white", "p2_black"];
+
+      // Try to assign a role
+      for (const role of roles) {
+        if (room.config[role].type === "ai") {
+          room.config[role] = {
+            type: "human",
+            id: socket.id,
+            name: name || "Player",
+          };
+          assignedRole = role;
+          room.players[socket.id] = { role: assignedRole, name };
+          break;
+        }
+      }
+
+      // If no role assigned (full), join as spectator
+      if (!assignedRole) {
+        assignedRole = "spectator";
+      }
+
       socket.emit("joined_room", {
         roomId,
         config: room.config,
         history: room.history,
+        role: assignedRole,
       });
 
       // Notify others
-      socket.to(roomId).emit("player_joined", { name });
+      io.to(roomId).emit("player_joined", { name, config: room.config });
     } else {
       socket.emit("error", "Room not found");
+    }
+  });
+
+  socket.on("start_game", (data) => {
+    const { roomId } = data;
+    if (rooms[roomId]) {
+      io.to(roomId).emit("game_started", {
+        roomId,
+        config: rooms[roomId].config,
+      });
     }
   });
 
@@ -222,7 +274,7 @@ io.on("connection", (socket) => {
     const { roomId, move } = data;
     if (rooms[roomId]) {
       rooms[roomId].history.push(move);
-      socket.to(roomId).emit("opponent_move", move);
+      socket.to(roomId).emit("move_made", move);
     }
   });
 

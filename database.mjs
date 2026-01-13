@@ -28,7 +28,12 @@ db.serialize(() => {
         balance REAL DEFAULT 0,
         kyc_status TEXT DEFAULT 'unverified',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+    )`, () => {
+        // Migration: Add missing columns if they don't exist
+        db.run("ALTER TABLE users ADD COLUMN phone TEXT", (err) => {});
+        db.run("ALTER TABLE users ADD COLUMN phone_verified INTEGER DEFAULT 0", (err) => {});
+        db.run("ALTER TABLE users ADD COLUMN kyc_level INTEGER DEFAULT 0", (err) => {});
+    });
 
   // Transactions/Claims table
   db.run(`CREATE TABLE IF NOT EXISTS transactions (

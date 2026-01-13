@@ -63,8 +63,8 @@ export class Lobby {
     ) => void
   ) {
     this.onGameStart = onGameStart;
-    // Connect to the Render backend explicitly
-    this.socket = io("https://chess-3d.onrender.com");
+    // Connect to the server (auto-detects origin, works with proxy in dev)
+    this.socket = io();
     this.setupSocketListeners();
 
     WebApp?.ready();
@@ -342,6 +342,31 @@ export class Lobby {
   }
 
   private renderRoom(): void {
+    this.container.innerHTML = "";
+
+    const title = document.createElement("h2");
+    title.innerText = `Room: ${this.roomId}`;
+    this.container.appendChild(title);
+
+    const playersList = document.createElement("div");
+    playersList.style.margin = "20px";
+    playersList.style.textAlign = "left";
+
+    if (this.currentConfig) {
+      const roles = ["p1_white", "p1_black", "p2_white", "p2_black"];
+      roles.forEach((role) => {
+        const player = this.currentConfig[role as keyof GameConfig];
+        const p = document.createElement("p");
+        p.innerText = `${role.toUpperCase()}: ${player.name} (${player.type})`;
+        if (role === this.myRole) {
+          p.style.fontWeight = "bold";
+          p.style.color = "#00ff00";
+        }
+        playersList.appendChild(p);
+      });
+    }
+    this.container.appendChild(playersList);
+
     if (this.myRole === "p1_white") {
       const startBtn = document.createElement("button");
       startBtn.innerText = "Start Game";
@@ -357,5 +382,15 @@ export class Lobby {
       waitMsg.innerText = "Waiting for host to start...";
       this.container.appendChild(waitMsg);
     }
+
+    const backBtn = document.createElement("button");
+    backBtn.innerText = "Leave Room";
+    backBtn.className = "btn";
+    backBtn.style.marginTop = "20px";
+    backBtn.onclick = () => {
+      // Reload to leave for now (simple)
+      window.location.reload();
+    };
+    this.container.appendChild(backBtn);
   }
 }

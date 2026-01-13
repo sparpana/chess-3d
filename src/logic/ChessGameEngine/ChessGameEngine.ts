@@ -250,6 +250,13 @@ export class ChessGameEngine {
 
       const actionResult = this.performAiMove(e.data.aiMove);
 
+      if (this.socket && this.roomId) {
+        this.socket.emit("make_move", {
+          roomId: this.roomId,
+          move: e.data.aiMove,
+        });
+      }
+
       this.turnCount++;
       this.updateTurnDisplay();
 
@@ -681,9 +688,11 @@ export class ChessGameEngine {
 
     // Replay history if provided
     if (history && history.length > 0) {
-        history.forEach(move => {
-            this.performRemoteMove(move);
-        });
+      history.forEach((move) => {
+        this.performAiMove(move);
+        this.turnCount++;
+        this.updateTurnDisplay();
+      });
     }
 
     this.drawSide();
