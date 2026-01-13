@@ -190,7 +190,7 @@ export class Game {
   }
 
   private showLobby(): void {
-    const lobby = new Lobby((roomId, config, myRole, socket) => {
+    const lobby = new Lobby((roomId, config, myRole, socket, history) => {
       this.socket = socket;
       this.myRole = myRole;
       this.gameConfig = config;
@@ -200,10 +200,11 @@ export class Game {
         (chessInstance: ChessInstance, playerColor: PieceColor) => {
           this.onEndGame(chessInstance, playerColor);
         },
-        config,
-        myRole,
-        socket,
-        roomId
+        this.gameConfig,
+        this.myRole,
+        this.socket,
+        this.roomId,
+        history
       );
     });
     lobby.show();

@@ -1,25 +1,26 @@
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const { Server } = require("socket.io");
-const { v4: uuidv4 } = require("uuid");
+/* eslint-disable no-undef */
+import express from "express";
+import { createServer } from "http";
+import { join } from "path";
+import { Server } from "socket.io";
+import { v4 as uuidv4 } from "uuid";
 
 const PORT = process.env.PORT || 3000;
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 
-app.use(express.static(path.join(__dirname, "dist")));
+app.use(express.static(join(__dirname, "dist")));
 
 // Basic Error Handling to prevent crashes
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
 });
 
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
 // app.use(express.static("dist")); // Removed old line
@@ -28,13 +29,19 @@ const io = new Server(server, {
 const rooms = {};
 const users = {}; // { socketId: { name, status } }
 const leaderboard = [
-  { name: "Grandmaster AI", wins: 10, losses: 0, gamesPlayed: 10, team: "DeepBlue" },
-  { name: "Rookie", wins: 2, losses: 8, gamesPlayed: 10, team: "Humans" }
+  {
+    name: "Grandmaster AI",
+    wins: 10,
+    losses: 0,
+    gamesPlayed: 10,
+    team: "DeepBlue",
+  },
+  { name: "Rookie", wins: 2, losses: 8, gamesPlayed: 10, team: "Humans" },
 ];
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-  
+
   // Initialize user as online
   users[socket.id] = { name: "Anonymous", status: "In Lobby" };
   io.emit("users_update", users);
@@ -51,7 +58,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("report_win", ({ name, team }) => {
-    const entry = leaderboard.find(e => e.name === name && e.team === team);
+    const entry = leaderboard.find((e) => e.name === name && e.team === team);
     if (entry) {
       entry.wins++;
       entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
@@ -60,35 +67,35 @@ io.on("connection", (socket) => {
         entry.bestStreak = entry.currentStreak;
       }
     } else {
-      leaderboard.push({ 
-        name, 
-        wins: 1, 
-        losses: 0, 
-        gamesPlayed: 1, 
+      leaderboard.push({
+        name,
+        wins: 1,
+        losses: 0,
+        gamesPlayed: 1,
         team: team || "Anonymous",
         currentStreak: 1,
-        bestStreak: 1
+        bestStreak: 1,
       });
     }
     leaderboard.sort((a, b) => b.wins - a.wins);
     io.emit("leaderboard_data", leaderboard);
   });
-  
+
   socket.on("report_loss", ({ name, team }) => {
-    const entry = leaderboard.find(e => e.name === name && e.team === team);
+    const entry = leaderboard.find((e) => e.name === name && e.team === team);
     if (entry) {
       entry.losses = (entry.losses || 0) + 1;
       entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
       entry.currentStreak = 0;
     } else {
-      leaderboard.push({ 
-        name, 
-        wins: 0, 
-        losses: 1, 
-        gamesPlayed: 1, 
+      leaderboard.push({
+        name,
+        wins: 0,
+        losses: 1,
+        gamesPlayed: 1,
         team: team || "Anonymous",
         currentStreak: 0,
-        bestStreak: 0
+        bestStreak: 0,
       });
     }
     io.emit("leaderboard_data", leaderboard);
@@ -98,20 +105,28 @@ io.on("connection", (socket) => {
     const roomId = uuidv4().slice(0, 6).toUpperCase();
     rooms[roomId] = {
       id: roomId,
-      players: {}, 
-      config: data.config || { 
+      players: {},
+      config: data.config || {
         // Default 2v2 Config: P1 White (Creator) vs 3 AI
-        p1_white: { type: 'human', id: socket.id, name: data.name || 'Player 1', team: data.team || 'Team A' },
-        p1_black: { type: 'ai', name: 'Black P1 (AI)' },
-        p2_white: { type: 'ai', name: 'White P2 (AI)' },
-        p2_black: { type: 'ai', name: 'Black P2 (AI)' }
+        p1_white: {
+          type: "human",
+          id: socket.id,
+          name: data.name || "Player 1",
+          team: data.team || "Team A",
+        },
+        p1_black: {
+          type: "ai",
+          name: data.agentName ? `${data.agentName} (AI)` : "Black P1 (AI)",
+        },
+        p2_white: { type: "ai", name: "White P2 (AI)" },
+        p2_black: { type: "ai", name: "Black P2 (AI)" },
       },
       turn: 0,
-      history: []
+      history: [],
     };
-    
+
     socket.join(roomId);
-    
+
     // Update status
     if (users[socket.id]) {
       users[socket.id].status = "In Room " + roomId;
@@ -128,69 +143,77 @@ io.on("connection", (socket) => {
       socket.emit("error", { message: "Room not found" });
       return;
     }
-    
+
     // Simple logic: find first available 'human' slot that is empty (no ID)
     // Or if the user wants to join, we might need to change a slot from AI to Human
     // For this prototype, we'll just try to fill a spot.
-    
+
     let assignedRole = null;
-    const roles = ['p1_white', 'p1_black', 'p2_white', 'p2_black'];
-    
+    const roles = ["p1_white", "p1_black", "p2_white", "p2_black"];
+
     // First pass: look for open human slots
     for (const role of roles) {
-        if (room.config[role].type === 'human' && !room.config[role].id) {
-            room.config[role].id = socket.id;
-            room.config[role].name = name || `Player ${socket.id.slice(0,4)}`;
-            assignedRole = role;
-            break;
-        }
+      if (room.config[role].type === "human" && !room.config[role].id) {
+        room.config[role].id = socket.id;
+        room.config[role].name = name || `Player ${socket.id.slice(0, 4)}`;
+        assignedRole = role;
+        break;
+      }
     }
-    
-    // Second pass: if no open human slots, convert an AI slot? 
+
+    // Second pass: if no open human slots, convert an AI slot?
     // Let's keep it simple: Lobby owner configures slots. Joiner just watches or takes what's given.
-    
+
     socket.join(roomId);
-    
+
     if (users[socket.id]) {
       users[socket.id].status = "In Room " + roomId;
       io.emit("users_update", users);
     }
 
-    socket.emit("joined_room", { roomId, config: room.config, role: assignedRole });
+    socket.emit("joined_room", {
+      roomId,
+      config: room.config,
+      role: assignedRole,
+      history: room.history,
+    });
     io.to(roomId).emit("player_joined", { config: room.config });
   });
 
   socket.on("update_config", ({ roomId, config }) => {
-      if (rooms[roomId]) {
-          // Verify ownership? Skip for prototype
-          rooms[roomId].config = config;
-          io.to(roomId).emit("config_updated", config);
-      }
+    if (rooms[roomId]) {
+      // Verify ownership? Skip for prototype
+      rooms[roomId].config = config;
+      io.to(roomId).emit("config_updated", config);
+    }
   });
-  
+
   socket.on("start_game", ({ roomId }) => {
-      if (rooms[roomId]) {
-        // Update all players in this room to "Playing"
-        const room = io.sockets.adapter.rooms.get(roomId);
-        if (room) {
-          for (const socketId of room) {
-            if (users[socketId]) {
-              users[socketId].status = "Playing";
-            }
+    if (rooms[roomId]) {
+      // Update all players in this room to "Playing"
+      const room = io.sockets.adapter.rooms.get(roomId);
+      if (room) {
+        for (const socketId of room) {
+          if (users[socketId]) {
+            users[socketId].status = "Playing";
           }
-          io.emit("users_update", users);
         }
-        io.to(roomId).emit("game_started", { roomId, config: rooms[roomId].config });
+        io.emit("users_update", users);
       }
+      io.to(roomId).emit("game_started", {
+        roomId,
+        config: rooms[roomId].config,
+      });
+    }
   });
 
   socket.on("make_move", ({ roomId, move }) => {
     const room = rooms[roomId];
     if (room) {
-        room.history.push(move);
-        room.turn++;
-        // Broadcast move to everyone else in the room
-        socket.to(roomId).emit("move_made", move);
+      room.history.push(move);
+      room.turn++;
+      // Broadcast move to everyone else in the room
+      socket.to(roomId).emit("move_made", move);
     }
   });
 

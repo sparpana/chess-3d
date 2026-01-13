@@ -663,7 +663,8 @@ export class ChessGameEngine {
     config?: GameConfig,
     myRole?: string | null,
     socket?: Socket,
-    roomId?: string
+    roomId?: string,
+    history?: Move[]
   ): PieceColor {
     this.onEndGameCallback = onEndGame;
     this.onPromotionCallback = onPromotion;
@@ -676,6 +677,13 @@ export class ChessGameEngine {
       this.socket.on("move_made", (move: Move) => {
         this.performRemoteMove(move);
       });
+    }
+
+    // Replay history if provided
+    if (history && history.length > 0) {
+        history.forEach(move => {
+            this.performRemoteMove(move);
+        });
     }
 
     this.drawSide();

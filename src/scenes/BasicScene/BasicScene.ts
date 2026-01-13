@@ -19,7 +19,7 @@ import { Socket } from "socket.io-client";
 import { GameConfig } from "logic/Lobby/Lobby";
 
 export abstract class BasicScene extends Scene {
-  private _renderer: Renderer;
+  protected _renderer: Renderer;
 
   loader: GLTFLoader;
 
@@ -42,7 +42,8 @@ export abstract class BasicScene extends Scene {
     config?: GameConfig,
     myRole?: string | null,
     socket?: Socket,
-    roomId?: string
+    roomId?: string,
+    history?: never[]
   ): void;
 
   constructor(props: BasicSceneProps) {
@@ -61,7 +62,7 @@ export abstract class BasicScene extends Scene {
     this.orbitals.enableZoom = true;
     this.orbitals.enablePan = false;
     this.orbitals.minDistance = 5;
-    this.orbitals.maxDistance = 20;
+    this.orbitals.maxDistance = 150; // Increased to allow more zoom out
     this.orbitals.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
     this.background = new Color(0xefefef);
     this.world = new World({ gravity: new Vec3(0, -9.82, 0) });

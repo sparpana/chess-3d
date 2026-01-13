@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Telegram WebApp SDK is injected by the Telegram client
 // WebApp is declared later in the file; skip duplicate declaration here
 interface TelegramWindow {
@@ -38,13 +39,15 @@ export interface GameConfig {
 export class Lobby {
   private socket: Socket;
   private container: HTMLDivElement;
+  private initialHistory: any[] = [];
 
   // private tonConnectUI: TonConnectUI;
   private onGameStart: (
     roomId: string,
     config: GameConfig,
     myRole: string | null,
-    socket: Socket
+    socket: Socket,
+    history?: any[]
   ) => void;
   private currentConfig: GameConfig | null = null;
   private roomId: string | null = null;
@@ -55,7 +58,8 @@ export class Lobby {
       roomId: string,
       config: GameConfig,
       myRole: string | null,
-      socket: Socket
+      socket: Socket,
+      history?: any[]
     ) => void
   ) {
     this.onGameStart = onGameStart;
@@ -63,7 +67,7 @@ export class Lobby {
     this.socket = io("https://chess-3d.onrender.com");
     this.setupSocketListeners();
 
-    WebApp.ready();
+    WebApp?.ready();
   }
 
   private setupSocketListeners(): void {
@@ -87,14 +91,17 @@ export class Lobby {
         roomId,
         config,
         role,
+        history,
       }: {
         roomId: string;
         config: GameConfig;
         role: string;
+        history: any[];
       }) => {
         this.roomId = roomId;
         this.currentConfig = config;
         this.myRole = role;
+        this.initialHistory = history || [];
         this.renderRoom();
       }
     );
@@ -111,7 +118,13 @@ export class Lobby {
 
     this.socket.on("game_started", ({ roomId, config }) => {
       this.container.remove();
-      this.onGameStart(roomId, config, this.myRole, this.socket);
+      this.onGameStart(
+        roomId,
+        config,
+        this.myRole,
+        this.socket,
+        this.initialHistory
+      );
     });
 
     this.socket.on("leaderboard_data", (data) => {
@@ -162,9 +175,49 @@ export class Lobby {
   private renderMainMenu() {
     this.container.innerHTML = "";
 
+    // Retrieve User Info from LocalStorage (shared with main site)
+    let username = "Player";
+    try {
+      const storedUser = localStorage.getItem("plink_user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.username) username = parsed.username;
+        else if (parsed.email) username = parsed.email.split("@")[0];
+      }
+    } catch (e) {
+      console.warn("Failed to load user data", e);
+    }
+
+    // Fallback to Telegram name if available
+    const telegramName = WebApp?.initDataUnsafe?.user?.first_name;
+    if (telegramName) username = telegramName;
+
+    // Retrieve Agent Info from URL
+    const params = new URLSearchParams(window.location.search);
+    const agentName = params.get("agentName");
+    const agentId = params.get("opponent");
+
     const title = document.createElement("h1");
     title.innerText = "2v2 Chess Prototype";
     this.container.appendChild(title);
+
+    if (agentName) {
+      const agentDisplay = document.createElement("h3");
+      agentDisplay.style.color = "#00ff00"; // Green for visibility
+      agentDisplay.innerText = `LINKED AGENT: ${agentName.toUpperCase()}`;
+      this.container.appendChild(agentDisplay);
+
+      const agentIdDisplay = document.createElement("p");
+      agentIdDisplay.style.fontSize = "0.8rem";
+      agentIdDisplay.style.opacity = "0.7";
+      agentIdDisplay.innerText = `AGENT ID: ${agentId}`;
+      this.container.appendChild(agentIdDisplay);
+    }
+
+    const welcome = document.createElement("p");
+    welcome.innerText = `Welcome, ${username}`;
+    welcome.style.marginBottom = "20px";
+    this.container.appendChild(welcome);
 
     // TON Connect Button removed for now
 
@@ -178,17 +231,15 @@ export class Lobby {
     createBtn.innerText = "Create Game";
     createBtn.className = "btn";
 
-    // Auto-fill name from Telegram if available
-    const telegramName = WebApp.initDataUnsafe?.user?.first_name || "Player";
-
     createBtn.onclick = () =>
       this.socket.emit("create_room", {
-        name: telegramName,
+        name: username,
         team: teamInput.value || "Team A",
+        agentName: agentName, // Pass agent name to server if needed, or just for context
       });
 
     // Set my name on server
-    this.socket.emit("set_name", telegramName);
+    this.socket.emit("set_name", username);
 
     this.container.appendChild(createBtn);
 
@@ -215,11 +266,9 @@ export class Lobby {
 
     joinBtn.onclick = () => {
       if (input.value) {
-        const telegramName =
-          WebApp.initDataUnsafe?.user?.first_name || "Player";
         this.socket.emit("join_room", {
           roomId: input.value,
-          name: telegramName,
+          name: username,
         });
       }
     };
@@ -294,13 +343,11 @@ export class Lobby {
 
   private renderRoom(): void {
     if (this.myRole === "p1_white") {
-
       const startBtn = document.createElement("button");
       startBtn.innerText = "Start Game";
       startBtn.className = "btn";
       startBtn.onclick = () => {
         if (this.roomId) {
-
           this.socket.emit("start_game", { roomId: this.roomId });
         }
       };
@@ -312,4 +359,3 @@ export class Lobby {
     }
   }
 }
-

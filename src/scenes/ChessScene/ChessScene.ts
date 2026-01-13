@@ -10,6 +10,7 @@ import {
   OnEndGame,
   PromotionResult,
 } from "logic/ChessGameEngine/types";
+import { Move } from "chess.js";
 
 import { GameConfig } from "logic/Lobby/Lobby";
 import { Socket } from "socket.io-client";
@@ -24,9 +25,13 @@ export class ChessScene extends BasicScene {
     this.chessGameEngine = new ChessGameEngine(this.world, this.loader);
   }
 
-  private getCoords(event: MouseEvent): { x: number; y: number } {
-    const x = (event.clientX / window.innerWidth) * 2 - 1;
-    const y = -(event.clientY / window.innerHeight) * 2 + 1;
+  private getCoords(event: MouseEvent | PointerEvent): {
+    x: number;
+    y: number;
+  } {
+    const rect = this._renderer.domElement.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     return { x, y };
   }
@@ -192,7 +197,8 @@ export class ChessScene extends BasicScene {
     config?: GameConfig,
     myRole?: string | null,
     socket?: Socket,
-    roomId?: string
+    roomId?: string,
+    history?: Move[]
   ): void {
     this.orbitals.autoRotate = false;
     const playerStartingSide = this.chessGameEngine.start(
@@ -210,7 +216,8 @@ export class ChessScene extends BasicScene {
       config,
       myRole,
       socket,
-      roomId
+      roomId,
+      history
     );
     this.setCameraPosition(playerStartingSide);
   }
