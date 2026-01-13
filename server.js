@@ -1,108 +1,173 @@
-/* eslint-disable no-undef */
 import express from "express";
 import { createServer } from "http";
-import { join } from "path";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
+import cors from "cors";
+import bodyParser from "body-parser";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { run, get, serialize, all } from "./database.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// eslint-disable-next-line no-undef
 const PORT = process.env.PORT || 3000;
+const SECRET_KEY = "plinkoverse_secret_key_change_me";
+
 const app = express();
 const server = createServer(app);
-
-app.use(express.static(join(__dirname, "dist")));
-
-// Basic Error Handling to prevent crashes
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
-});
-
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*", // Allow all for now
     methods: ["GET", "POST"],
   },
 });
 
-// app.use(express.static("dist")); // Removed old line
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, "dist")));
 
-// Game State Storage (Memory)
+// --- AUTH ROUTES ---
+
+// Register
+app.post("/api/auth/register", (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password)
+    return res.status(400).json({ msg: "Missing fields" });
+
+  const hash = bcrypt.hashSync(password, 8);
+
+  run(
+    `INSERT INTO users (username, email, password) VALUES (?, ?, ?)`,
+    [username, email, hash],
+    function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE"))
+          return res.status(400).json({ msg: "User already exists" });
+        return res.status(500).json({ msg: "Database error" });
+      }
+
+      // Auto login
+      const token = jwt.sign({ id: this.lastID }, SECRET_KEY, {
+        expiresIn: "24h",
+      });
+      res.json({
+        token,
+        user: {
+          id: this.lastID,
+          username,
+          email,
+          balance: 0,
+          kyc_status: "unverified",
+        },
+      });
+    }
+  );
+});
+
+// Login
+app.post("/api/auth/login", (req, res) => {
+  const { email, password } = req.body;
+
+  get(`SELECT * FROM users WHERE email = ?`, [email], (err, user) => {
+    if (err) return res.status(500).json({ msg: "Server error" });
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const valid = bcrypt.compareSync(password, user.password);
+    if (!valid) return res.status(401).json({ msg: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user.id }, SECRET_KEY, { expiresIn: "24h" });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        balance: user.balance,
+        kyc_status: user.kyc_status,
+      },
+    });
+  });
+});
+
+// Get Profile (Protected)
+app.get("/api/user/profile", verifyToken, (req, res) => {
+  get(
+    `SELECT id, username, email, balance, kyc_status, created_at FROM users WHERE id = ?`,
+    [req.userId],
+    (err, user) => {
+      if (err) return res.status(500).json({ msg: "Error" });
+      res.json(user);
+    }
+  );
+});
+
+// Update Balance (e.g. Claim)
+app.post("/api/user/claim", verifyToken, (req, res) => {
+  const { amount, description } = req.body;
+  // Simple logic: add balance
+  serialize(() => {
+    run(`UPDATE users SET balance = balance + ? WHERE id = ?`, [
+      amount,
+      req.userId,
+    ]);
+    run(
+      `INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)`,
+      [req.userId, "claim", amount, description || "Faucet Claim"]
+    );
+
+    get(`SELECT balance FROM users WHERE id = ?`, [req.userId], (err, row) => {
+      res.json({ newBalance: row.balance });
+    });
+  });
+});
+
+function verifyToken(req, res, next) {
+  const token = req.headers["x-access-token"] || req.headers["authorization"]; // Bearer <token>
+  if (!token) return res.status(403).json({ msg: "No token" });
+
+  // Remove 'Bearer ' if present
+  const cleanToken = token.startsWith("Bearer ")
+    ? token.slice(7, token.length)
+    : token;
+
+  jwt.verify(cleanToken, SECRET_KEY, (err, decoded) => {
+    if (err) return res.status(401).json({ msg: "Unauthorized" });
+    req.userId = decoded.id;
+    next();
+  });
+}
+
+// Stats (Total PLIK Claimed)
+app.get("/api/stats/plik", (req, res) => {
+  get(
+    `SELECT SUM(amount) as totalClaimed FROM transactions WHERE type = 'claim'`,
+    (err, row) => {
+      if (err) return res.status(500).json({ msg: "Error" });
+      res.json({ totalClaimed: row.totalClaimed || 0 });
+    }
+  );
+});
+
+// --- SOCKET IO (CHESS) ---
+
 const rooms = {};
-const users = {}; // { socketId: { name, status } }
-const leaderboard = [
-  {
-    name: "Grandmaster AI",
-    wins: 10,
-    losses: 0,
-    gamesPlayed: 10,
-    team: "DeepBlue",
-  },
-  { name: "Rookie", wins: 2, losses: 8, gamesPlayed: 10, team: "Humans" },
-];
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  // Initialize user as online
-  users[socket.id] = { name: "Anonymous", status: "In Lobby" };
-  io.emit("users_update", users);
-
-  socket.on("set_name", (name) => {
-    if (users[socket.id]) {
-      users[socket.id].name = name;
-      io.emit("users_update", users);
-    }
-  });
-
-  socket.on("get_leaderboard", () => {
-    socket.emit("leaderboard_data", leaderboard);
-  });
-
-  socket.on("report_win", ({ name, team }) => {
-    const entry = leaderboard.find((e) => e.name === name && e.team === team);
-    if (entry) {
-      entry.wins++;
-      entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
-      entry.currentStreak = (entry.currentStreak || 0) + 1;
-      if ((entry.currentStreak || 0) > (entry.bestStreak || 0)) {
-        entry.bestStreak = entry.currentStreak;
-      }
-    } else {
-      leaderboard.push({
-        name,
-        wins: 1,
-        losses: 0,
-        gamesPlayed: 1,
-        team: team || "Anonymous",
-        currentStreak: 1,
-        bestStreak: 1,
-      });
-    }
-    leaderboard.sort((a, b) => b.wins - a.wins);
-    io.emit("leaderboard_data", leaderboard);
-  });
-
-  socket.on("report_loss", ({ name, team }) => {
-    const entry = leaderboard.find((e) => e.name === name && e.team === team);
-    if (entry) {
-      entry.losses = (entry.losses || 0) + 1;
-      entry.gamesPlayed = (entry.gamesPlayed || 0) + 1;
-      entry.currentStreak = 0;
-    } else {
-      leaderboard.push({
-        name,
-        wins: 0,
-        losses: 1,
-        gamesPlayed: 1,
-        team: team || "Anonymous",
-        currentStreak: 0,
-        bestStreak: 0,
-      });
-    }
-    io.emit("leaderboard_data", leaderboard);
-  });
+  // console.log("New connection:", socket.id);
 
   socket.on("create_room", (data) => {
-    const roomId = uuidv4().slice(0, 6).toUpperCase();
+    let roomId = uuidv4().slice(0, 5).toUpperCase();
+
+    // Ensure unique room ID
+    while (rooms[roomId]) {
+      roomId = uuidv4().slice(0, 5).toUpperCase();
+    }
+
     rooms[roomId] = {
       id: roomId,
       players: {},
@@ -125,107 +190,56 @@ io.on("connection", (socket) => {
       history: [],
     };
 
-    socket.join(roomId);
-
-    // Update status
-    if (users[socket.id]) {
-      users[socket.id].status = "In Room " + roomId;
-      io.emit("users_update", users);
-    }
-
-    socket.emit("room_created", { roomId, config: rooms[roomId].config });
-    console.log(`Room ${roomId} created by ${socket.id}`);
-  });
-
-  socket.on("join_room", ({ roomId, name }) => {
-    const room = rooms[roomId];
-    if (!room) {
-      socket.emit("error", { message: "Room not found" });
-      return;
-    }
-
-    // Simple logic: find first available 'human' slot that is empty (no ID)
-    // Or if the user wants to join, we might need to change a slot from AI to Human
-    // For this prototype, we'll just try to fill a spot.
-
-    let assignedRole = null;
-    const roles = ["p1_white", "p1_black", "p2_white", "p2_black"];
-
-    // First pass: look for open human slots
-    for (const role of roles) {
-      if (room.config[role].type === "human" && !room.config[role].id) {
-        room.config[role].id = socket.id;
-        room.config[role].name = name || `Player ${socket.id.slice(0, 4)}`;
-        assignedRole = role;
-        break;
-      }
-    }
-
-    // Second pass: if no open human slots, convert an AI slot?
-    // Let's keep it simple: Lobby owner configures slots. Joiner just watches or takes what's given.
+    rooms[roomId].players[socket.id] = { role: "p1_white", name: data.name };
 
     socket.join(roomId);
-
-    if (users[socket.id]) {
-      users[socket.id].status = "In Room " + roomId;
-      io.emit("users_update", users);
-    }
-
-    socket.emit("joined_room", {
-      roomId,
-      config: room.config,
-      role: assignedRole,
-      history: room.history,
-    });
-    io.to(roomId).emit("player_joined", { config: room.config });
+    socket.emit("room_created", roomId);
+    socket.emit("game_config", rooms[roomId].config); // Send initial config
   });
 
-  socket.on("update_config", ({ roomId, config }) => {
-    if (rooms[roomId]) {
-      // Verify ownership? Skip for prototype
-      rooms[roomId].config = config;
-      io.to(roomId).emit("config_updated", config);
-    }
-  });
-
-  socket.on("start_game", ({ roomId }) => {
-    if (rooms[roomId]) {
-      // Update all players in this room to "Playing"
-      const room = io.sockets.adapter.rooms.get(roomId);
-      if (room) {
-        for (const socketId of room) {
-          if (users[socketId]) {
-            users[socketId].status = "Playing";
-          }
-        }
-        io.emit("users_update", users);
-      }
-      io.to(roomId).emit("game_started", {
-        roomId,
-        config: rooms[roomId].config,
-      });
-    }
-  });
-
-  socket.on("make_move", ({ roomId, move }) => {
+  socket.on("join_room", (data) => {
+    const { roomId, name } = data;
     const room = rooms[roomId];
+
     if (room) {
-      room.history.push(move);
-      room.turn++;
-      // Broadcast move to everyone else in the room
-      socket.to(roomId).emit("move_made", move);
+      socket.join(roomId);
+
+      // Assign next available human slot if any (Simple logic)
+      socket.emit("joined_room", {
+        roomId,
+        config: room.config,
+        history: room.history,
+      });
+
+      // Notify others
+      socket.to(roomId).emit("player_joined", { name });
+    } else {
+      socket.emit("error", "Room not found");
     }
   });
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-    delete users[socket.id];
-    io.emit("users_update", users);
-    // Remove player from rooms?
-    // For prototype, we keep them in config but they might be offline.
+  socket.on("make_move", (data) => {
+    const { roomId, move } = data;
+    if (rooms[roomId]) {
+      rooms[roomId].history.push(move);
+      socket.to(roomId).emit("opponent_move", move);
+    }
+  });
+
+  // Leaderboard request
+  socket.on("get_leaderboard", () => {
+    all(
+      `SELECT username, balance FROM users ORDER BY balance DESC LIMIT 10`,
+      (err, rows) => {
+        if (!err) {
+          socket.emit("leaderboard_data", rows);
+        }
+      }
+    );
   });
 });
 
-server.listen(process.env.PORT || PORT, () => {
-  console.log("Server listening on port " + PORT);
+server.listen(PORT, () => {
+  // eslint-disable-next-line no-undef
+  console.log(`Server running on port ${PORT}`);
 });

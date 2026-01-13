@@ -43,7 +43,7 @@ export abstract class BasicScene extends Scene {
     myRole?: string | null,
     socket?: Socket,
     roomId?: string,
-    history?: never[]
+    history?: unknown[]
   ): void;
 
   constructor(props: BasicSceneProps) {
