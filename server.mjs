@@ -65,7 +65,7 @@ app.post("/api/auth/register", (req, res) => {
           kyc_status: "unverified",
           kyc_level: 0,
           phone: null,
-          phone_verified: 0
+          phone_verified: 0,
         },
       });
     }
@@ -94,7 +94,7 @@ app.post("/api/auth/login", (req, res) => {
         kyc_status: user.kyc_status,
         kyc_level: user.kyc_level || 0,
         phone: user.phone,
-        phone_verified: user.phone_verified || 0
+        phone_verified: user.phone_verified || 0,
       },
     });
   });

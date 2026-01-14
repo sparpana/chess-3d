@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import sqlite3 from "sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -20,7 +22,8 @@ const db = new verboseSqlite.Database(dbPath, (err) => {
 
 db.serialize(() => {
   // Users table
-  db.run(`CREATE TABLE IF NOT EXISTS users (
+  db.run(
+    `CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         email TEXT UNIQUE,
@@ -28,12 +31,20 @@ db.serialize(() => {
         balance REAL DEFAULT 0,
         kyc_status TEXT DEFAULT 'unverified',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, () => {
-        // Migration: Add missing columns if they don't exist
-        db.run("ALTER TABLE users ADD COLUMN phone TEXT", (err) => {});
-        db.run("ALTER TABLE users ADD COLUMN phone_verified INTEGER DEFAULT 0", (err) => {});
-        db.run("ALTER TABLE users ADD COLUMN kyc_level INTEGER DEFAULT 0", (err) => {});
-    });
+    )`,
+    () => {
+      // Migration: Add missing columns if they don't exist
+      db.run("ALTER TABLE users ADD COLUMN phone TEXT", (_err) => {});
+      db.run(
+        "ALTER TABLE users ADD COLUMN phone_verified INTEGER DEFAULT 0",
+        (_err) => {}
+      );
+      db.run(
+        "ALTER TABLE users ADD COLUMN kyc_level INTEGER DEFAULT 0",
+        (_err) => {}
+      );
+    }
+  );
 
   // Transactions/Claims table
   db.run(`CREATE TABLE IF NOT EXISTS transactions (
